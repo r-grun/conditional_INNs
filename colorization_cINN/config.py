@@ -34,7 +34,7 @@ pre_low_lr = 0                      # for the first n epochs, lower the lr by a 
 #######################
 
 dataset = 'imagenet'                # also 'coco' is possible. Todo: places365
-data_dir = '/mnt/data/robin_grun/data/inverse_anaglyph'
+data_dir = '/data/inverse_anaglyph'
 validation_images = './imagenet/validation_images.txt'
 shuffle_val = False
 val_start = 0                       # use a slice [start:stop] of the entire val set

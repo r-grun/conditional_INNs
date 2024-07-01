@@ -14,7 +14,7 @@ clamping = 1.5
 
 seed = 9287
 batch_size = 48
-device_ids = [0,1,2]                # GPU ids. Set to [0] for single GPU
+device_ids = [0,1,2,3,4,5,6,7]                # GPU ids. Set to [0] for single GPU
 
 log10_lr = -4.0                     # Log learning rate
 lr = 10**log10_lr
@@ -34,13 +34,14 @@ pre_low_lr = 0                      # for the first n epochs, lower the lr by a 
 #######################
 
 dataset = 'imagenet'                # also 'coco' is possible. Todo: places365
+data_dir = '/mnt/data/robin_grun/data/inverse_anaglyph'
 validation_images = './imagenet/validation_images.txt'
 shuffle_val = False
 val_start = 0                       # use a slice [start:stop] of the entire val set
 val_stop = 5120
 
 end_to_end = True                   # Whether to leave the cond. net fixed
-no_cond_net = False                 # Whether to use a cond. net at all
+no_cond_net = True                 # Whether to use a cond. net at all
 pretrain_epochs = 0                 # Train only the inn for n epochs before end-to-end
 
 ########################

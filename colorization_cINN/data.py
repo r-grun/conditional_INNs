@@ -106,7 +106,8 @@ if c.dataset == 'imagenet':
         if c.val_start is not None:
             test_list = test_list[c.val_start:c.val_stop]
 else:
-    data_dir = '/home/diz/data/coco17'
+    # TODO: read train and test data
+    data_dir = c.data_dir
     complete_list = sorted(glob.glob(join(data_dir, '*.jpg')))
     train_list = complete_list[64:]
     test_list = complete_list[64:]

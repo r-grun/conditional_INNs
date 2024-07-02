@@ -33,8 +33,8 @@ pre_low_lr = 0                      # for the first n epochs, lower the lr by a 
 # Dataset parameters: #
 #######################
 
-dataset = 'imagenet'                # also 'coco' is possible. Todo: places365
-data_dir = '/data/inverse_anaglyph'
+dataset = 'holopix'                # also 'coco' is possible. Todo: places365
+data_dir = '/data/inverse_anaglyph/'
 validation_images = './imagenet/validation_images.txt'
 shuffle_val = False
 val_start = 0                       # use a slice [start:stop] of the entire val set
@@ -52,7 +52,7 @@ sampling_temperature = 1.0          # latent std. dev. for preview images
 loss_display_cutoff = 10            # cut off the loss so the plot isn't ruined
 loss_names = ['L', 'lr']
 preview_upscale = 256 // img_dims_orig[0]
-img_folder = './images'
+img_folder = './data/images'
 silent = False
 live_visualization = False
 progress_bar = False
@@ -64,7 +64,7 @@ progress_bar = False
 load_inn_only = ''                  # only load the inn part of the architecture
 load_feature_net = ''               # only load the cond. net part
 load_file = ''                      # load entire architecture (overwrites the prev. 2 options)
-filename = 'output/full_model.pt'   # output filename
+filename = 'data/output/full_model.pt'   # output filename
 
 checkpoint_save_interval = 60
 checkpoint_save_overwrite = False   # Whether to overwrite the old checkpoint with the new one

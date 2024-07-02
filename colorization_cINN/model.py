@@ -7,6 +7,8 @@ import numpy as np
 
 from FrEIA.framework import *
 from FrEIA.modules import *
+from FrEIA.modules.coupling_layers import GLOWCouplingBlock
+from FrEIA.modules.reshapes import IRevNetDownsampling
 from subnet_coupling import *
 import data
 import config as c
@@ -58,6 +60,19 @@ fc_cond_net = nn.Sequential(*[
                               nn.BatchNorm2d(fc_cond_length),
                             ])
 
+def F_fully_connected(c_in, c_out):
+    return nn.Sequential(nn.Linear(c_in, 512), nn.ReLU(),
+                         nn.Linear(512,  c_out))
+
+def F_conv(c_in, c_out):
+    return nn.Sequential(nn.Conv2d(c_in, 256,   3, padding=1), nn.ReLU(),
+                         nn.Conv2d(256,  c_out, 3, padding=1))
+
+def conv_1x1(c_in, c_out):
+    return nn.Sequential(nn.Conv2d(c_in, 256,   1), nn.ReLU(),
+                         nn.Conv2d(256,  c_out, 1))
+
+
 def _add_conditioned_section(nodes, depth, channels_in, channels, cond_level):
 
     for k in range(depth):
@@ -86,31 +101,31 @@ def _add_conditioned_section(nodes, depth, channels_in, channels, cond_level):
 
 def _add_split_downsample(nodes, split, downsample, channels_in, channels):
     if downsample=='haar':
-        nodes.append(Node([nodes[-1].out0], haar_multiplex_layer, {'rebalance':0.5, 'order_by_wavelet':True}, name='haar'))
+        nodes.append(Node([nodes[-1].out0], HaarDownsampling, {'rebalance':0.5, 'order_by_wavelet':True}, name='haar'))
     if downsample=='reshape':
-        nodes.append(Node([nodes[-1].out0], i_revnet_downsampling, {}, name='reshape'))
+        nodes.append(Node([nodes[-1].out0], IRevNetDownsampling, {}, name='reshape'))
 
     for i in range(2):
         nodes.append(Node([nodes[-1].out0], conv_1x1, {'M':random_orthog(channels_in*4)}))
         nodes.append(Node([nodes[-1].out0],
-                      glow_coupling_layer,
+                          GLOWCouplingBlock,
                       {'clamp':c.clamping, 'F_class':F_conv,
                        'F_args':{'kernel_size':1, 'leaky_slope': 1e-2, 'channels_hidden':channels}},
                       conditions=[]))
 
     if split:
-        nodes.append(Node([nodes[-1].out0], split_layer,
+        nodes.append(Node([nodes[-1].out0], Split,
                         {'split_size_or_sections': split, 'dim':0}, name='split'))
 
-        output = Node([nodes[-1].out1], flattening_layer, {}, name='flatten')
+        output = Node([nodes[-1].out1], Flatten, {}, name='flatten')
         nodes.insert(-2, output)
         nodes.insert(-2, OutputNode([output.out0], name='out'))
 
 def _add_fc_section(nodes):
-    nodes.append(Node([nodes[-1].out0], flattening_layer, {}, name='flatten'))
+    nodes.append(Node([nodes[-1].out0], Flatten, {}, name='flatten'))
     for k in range(n_blocks_fc):
-        nodes.append(Node([nodes[-1].out0], permute_layer, {'seed':k}, name=F'permute_{k}'))
-        nodes.append(Node([nodes[-1].out0], glow_coupling_layer,
+        nodes.append(Node([nodes[-1].out0], PermuteRandom, {'seed':k}, name=F'permute_{k}'))
+        nodes.append(Node([nodes[-1].out0], GLOWCouplingBlock,
                 {'clamp':c.clamping, 'F_class':F_fully_connected, 'F_args':{'internal_size':512}},
                 conditions=[conditions[1]], name=F'fc_{k}'))
 

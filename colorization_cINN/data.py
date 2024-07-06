@@ -97,10 +97,12 @@ transf =      T.Compose([T.RandomHorizontalFlip(),
 transf_test = T.Compose([T.Resize(c.img_dims_orig[0]),
                          T.CenterCrop(c.img_dims_orig[0])])
 
+
+
 if c.dataset == 'imagenet' or c.dataset == 'holopix':
-    with open('/data/train.txt') as f:
+    with open(c.train_file) as f:
         train_list = [join(c.data_dir, fname) for fname in f.read().splitlines()]
-    with  open('/data/test.txt') as f:
+    with  open(c.test_file) as f:
         test_list = [join(c.data_dir, fname) for fname in f.read().splitlines()]
         if c.val_start is not None:
             test_list = test_list[c.val_start:c.val_stop]

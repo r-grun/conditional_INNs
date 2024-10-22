@@ -213,7 +213,7 @@ weight_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim,
                                                               cooldown=sched_cooldown,
                                                               verbose = True)
 
-weight_scheduler_fixed = torch.optim.lr_scheduler.torch.optim.lr_scheduler.StepLR(optim, 120, gamma=0.2)
+weight_scheduler_fixed = torch.optim.lr_scheduler.StepLR(optim, 120, gamma=0.2)
 
 class DummyOptim:
     def __init__(self):

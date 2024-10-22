@@ -14,7 +14,8 @@ clamping = 1.5
 
 seed = 9287
 batch_size = 48
-device_ids = [0,1,2,3,4,5,6,7]                # GPU ids. Set to [0] for single GPU
+# device_ids = [0,1,2,3,4,5,6,7]                # GPU ids. Set to [0] for single GPU
+device_ids = [0]
 
 log10_lr = -4.0                     # Log learning rate
 lr = 10**log10_lr
@@ -34,9 +35,9 @@ pre_low_lr = 0                      # for the first n epochs, lower the lr by a 
 #######################
 
 dataset = 'holopix'                # also 'coco' is possible. Todo: places365
-data_dir = '/workspace/data/data/inverse_anaglyph/'
-train_file = './data/train.txt'
-test_file = './data/test.txt'
+data_dir = '/data/data/data/inverse_anaglyph/'
+train_file = '../../data/train.txt'
+test_file = '../../data/test.txt'
 validation_images = './imagenet/validation_images.txt'
 shuffle_val = False
 val_start = 0                       # use a slice [start:stop] of the entire val set

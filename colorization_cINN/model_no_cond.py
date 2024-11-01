@@ -58,10 +58,10 @@ def _add_conditioned_section(nodes, depth, channels_in, channels, cond_level):
                           subnet_coupling_layer,
                           {'clamp':c.clamping, 'F_class':F_conv,
                            'subnet':cond_subnet(cond_level), 'sub_len':4**(cond_level+2),
-                           'F_args':{'leaky_slope': 5e-2, 'channels_hidden':channels}},
+                           'F_args':{'kernel_size': 1, 'leaky_slope': 5e-2, 'channels_hidden':channels}},
                           conditions=[conditions[0]], name=F'conv_{k}'))
 
-        nodes.append(Node([nodes[-1].out0], conv_1x1, {'M':random_orthog(channels_in)}))
+        nodes.append(Node([nodes[-1].out0], Fixed1x1Conv, {'M':random_orthog(channels_in)}))
 
 
 def _add_split_downsample(nodes, split, downsample, channels_in, channels):
@@ -71,16 +71,15 @@ def _add_split_downsample(nodes, split, downsample, channels_in, channels):
         nodes.append(Node([nodes[-1].out0], IRevNetDownsampling, {}, name='reshape'))
 
     for i in range(2):
-        nodes.append(Node([nodes[-1].out0], conv_1x1, {'M':random_orthog(channels_in*4)}))
+        nodes.append(Node([nodes[-1].out0], Fixed1x1Conv, {'M':random_orthog(channels_in*4)}))
         nodes.append(Node([nodes[-1].out0],
-                      GLOWCouplingBlock,
-                      {'clamp':c.clamping, 'F_class':F_conv,
-                       'F_args':{'kernel_size':1, 'leaky_slope': 1e-2, 'channels_hidden':channels}},
-                      conditions=[]))
+                          GLOWCouplingBlock,
+                          {'clamp':c.clamping, 'subnet_constructor': subnet_conv_3x3},
+                          conditions=[]))
 
     if split:
         nodes.append(Node([nodes[-1].out0], Split,
-                        {'split_size_or_sections': split, 'dim':0}, name='split'))
+                          {'section_sizes': split, 'n_sections': split[1], 'dim':0}, name='split'))
 
         output = Node([nodes[-1].out1], Flatten, {}, name='flatten')
         nodes.insert(-2, output)
@@ -91,8 +90,8 @@ def _add_fc_section(nodes):
     for k in range(n_blocks_fc):
         nodes.append(Node([nodes[-1].out0], PermuteRandom, {'seed':k}, name=F'permute_{k}'))
         nodes.append(Node([nodes[-1].out0], GLOWCouplingBlock,
-                {'clamp':c.clamping, 'F_class':F_fully_connected, 'F_args':{'internal_size':512}},
-                conditions=[], name=F'fc_{k}'))
+                          {'clamp':c.clamping, 'subnet_constructor': subnet_fully_connected},
+                          conditions=[], name=F'fc_{k}'))
 
     nodes.append(OutputNode([nodes[-1].out0], name='out'))
 
@@ -207,14 +206,14 @@ sched_trehsh = 0.001
 sched_cooldown = 2
 
 weight_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim,
-                                                            factor=sched_factor,
-                                                            patience=sched_patience,
-                                                            threshold=sched_trehsh,
-                                                            min_lr=0, eps=1e-08,
-                                                            cooldown=sched_cooldown,
-                                                            verbose = True)
+                                                              factor=sched_factor,
+                                                              patience=sched_patience,
+                                                              threshold=sched_trehsh,
+                                                              min_lr=0, eps=1e-08,
+                                                              cooldown=sched_cooldown,
+                                                              verbose = True)
 
-weight_scheduler_fixed = torch.optim.lr_scheduler.torch.optim.lr_scheduler.StepLR(optim, 120, gamma=0.2)
+weight_scheduler_fixed = torch.optim.lr_scheduler.StepLR(optim, 120, gamma=0.2)
 
 class DummyOptim:
     def __init__(self):
@@ -233,12 +232,12 @@ efros_net.train()
 if c.end_to_end:
     feature_optim = torch.optim.Adam(combined_model.module.feature_network.parameters(), lr=c.lr_feature_net, betas=c.betas, eps=1e-4)
     feature_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(feature_optim,
-                                                            factor=sched_factor,
-                                                            patience=sched_patience,
-                                                            threshold=sched_trehsh,
-                                                            min_lr=0, eps=1e-08,
-                                                            cooldown=sched_cooldown,
-                                                            verbose = True)
+                                                                   factor=sched_factor,
+                                                                   patience=sched_patience,
+                                                                   threshold=sched_trehsh,
+                                                                   min_lr=0, eps=1e-08,
+                                                                   cooldown=sched_cooldown,
+                                                                   verbose = True)
 else:
     feature_optim = DummyOptim()
     feature_scheduler = DummyOptim()

@@ -49,54 +49,71 @@ def cond_subnet(level, c_out, extra_conv=False):
     return nn.Sequential(*modules)
 
 fc_cond_net = nn.Sequential(*[
-                              nn.Conv2d(feature_channels, 128, 3, stride=2, padding=1), # 32 x 32
-                              nn.LeakyReLU(),
-                              nn.Conv2d(128, 256, 3, stride=2, padding=1), # 16 x 16
-                              nn.LeakyReLU(),
-                              nn.Conv2d(256, 256, 3, stride=2, padding=1), # 8 x 8
-                              nn.LeakyReLU(),
-                              nn.Conv2d(256, fc_cond_length, 3, stride=2, padding=1), # 4 x 4
-                              nn.AvgPool2d(4),
-                              nn.BatchNorm2d(fc_cond_length),
-                            ])
+    nn.Conv2d(feature_channels, 128, 3, stride=2, padding=1), # 32 x 32
+    nn.LeakyReLU(),
+    nn.Conv2d(128, 256, 3, stride=2, padding=1), # 16 x 16
+    nn.LeakyReLU(),
+    nn.Conv2d(256, 256, 3, stride=2, padding=1), # 8 x 8
+    nn.LeakyReLU(),
+    nn.Conv2d(256, fc_cond_length, 3, stride=2, padding=1), # 4 x 4
+    nn.AvgPool2d(4),
+    nn.BatchNorm2d(fc_cond_length),
+])
 
-def F_fully_connected(c_in, c_out):
-    return nn.Sequential(nn.Linear(c_in, 512), nn.ReLU(),
-                         nn.Linear(512,  c_out))
+def F_conv(dims_in, dims_out, kernel_size, leaky_slope, channels_hidden):
+    return nn.Sequential(
+        nn.Conv2d(dims_in, channels_hidden, kernel_size, padding=(kernel_size // 2)),
+        nn.LeakyReLU(negative_slope=leaky_slope, inplace=True),
+        nn.Conv2d(channels_hidden, dims_out, kernel_size, padding=(kernel_size // 2))
+    )
 
-def F_conv(c_in, c_out):
-    return nn.Sequential(nn.Conv2d(c_in, 256,   3, padding=1), nn.ReLU(),
-                         nn.Conv2d(256,  c_out, 3, padding=1))
+def F_fully_connected(dims_in, dims_out, internal_size):
+    return nn.Sequential(
+        nn.Linear(dims_in, internal_size),
+        nn.ReLU(inplace=True),
+        nn.Linear(internal_size, dims_out)
+    )
 
-def conv_1x1(c_in, c_out):
-    return nn.Sequential(nn.Conv2d(c_in, 256,   1), nn.ReLU(),
-                         nn.Conv2d(256,  c_out, 1))
+def subnet_conv_3x3(c_in, c_out):
+    return nn.Sequential(
+        nn.Conv2d(c_in, 256, 3, padding=1),
+        nn.ReLU(),
+        nn.Conv2d(256, c_out, 3, padding=1)
+    )
+
+
+def subnet_fully_connected(c_in, c_out):
+    return nn.Sequential(
+        nn.Linear(c_in, 512),
+        nn.ReLU(),
+        nn.Linear(512, c_out)
+    )
 
 
 def _add_conditioned_section(nodes, depth, channels_in, channels, cond_level):
 
     for k in range(depth):
-            nodes.append(Node([nodes[-1].out0],
-                              subnet_coupling_layer,
-                              {'clamp':c.clamping, 'F_class':F_conv,
-                               'subnet':cond_subnet(cond_level, channels//2), 'sub_len':channels,
-                               'F_args':{'leaky_slope': 5e-2, 'channels_hidden':channels}},
-                              conditions=[conditions[0]], name=F'conv_{k}'))
+        nodes.append(Node([nodes[-1].out0],
+                          subnet_coupling_layer,
+                          {'clamp':c.clamping, 'F_class':F_conv,
+                           'subnet':cond_subnet(cond_level, channels//2), 'sub_len':channels,
+                           'F_args':{'kernel_size': 1, 'leaky_slope': 5e-2, 'channels_hidden':channels}},
+                          conditions=[conditions[0]], name=F'conv_{k}'))
 
         #else:
-            #nodes.append(Node([nodes[-1].out0],
-                              #glow_coupling_layer,
-                              #{'clamp':c.clamping, 'F_class':F_conv,
-                               #'F_args':{'leaky_slope': 1e-2, 'channels_hidden':channels}},
-                              #conditions=[], name=F'conv_{k}'))
+        #nodes.append(Node([nodes[-1].out0],
+        #glow_coupling_layer,
+        #{'clamp':c.clamping, 'F_class':F_conv,
+        #'F_args':{'leaky_slope': 1e-2, 'channels_hidden':channels}},
+        #conditions=[], name=F'conv_{k}'))
 
 
-            #nodes.append(Node([nodes[-1].out0],
-                              #cbn_direct,
-                              #{'clamp':c.clamping, 'subnet':cond_subnet(cond_level, channels_in, (cond_level==0))},
-                              #conditions=[conditions[0]], name=F'cbn_{k}'))
+        #nodes.append(Node([nodes[-1].out0],
+        #cbn_direct,
+        #{'clamp':c.clamping, 'subnet':cond_subnet(cond_level, channels_in, (cond_level==0))},
+        #conditions=[conditions[0]], name=F'cbn_{k}'))
 
-            nodes.append(Node([nodes[-1].out0], conv_1x1, {'M':random_orthog(channels_in)}))
+        nodes.append(Node([nodes[-1].out0], Fixed1x1Conv, {'M':random_orthog(channels_in)}))
 
 
 def _add_split_downsample(nodes, split, downsample, channels_in, channels):
@@ -106,16 +123,15 @@ def _add_split_downsample(nodes, split, downsample, channels_in, channels):
         nodes.append(Node([nodes[-1].out0], IRevNetDownsampling, {}, name='reshape'))
 
     for i in range(2):
-        nodes.append(Node([nodes[-1].out0], conv_1x1, {'M':random_orthog(channels_in*4)}))
+        nodes.append(Node([nodes[-1].out0], Fixed1x1Conv, {'M':random_orthog(channels_in*4)}))
         nodes.append(Node([nodes[-1].out0],
                           GLOWCouplingBlock,
-                      {'clamp':c.clamping, 'F_class':F_conv,
-                       'F_args':{'kernel_size':1, 'leaky_slope': 1e-2, 'channels_hidden':channels}},
-                      conditions=[]))
+                          {'clamp':c.clamping, 'subnet_constructor': subnet_conv_3x3},
+                          conditions=[]))
 
     if split:
         nodes.append(Node([nodes[-1].out0], Split,
-                        {'split_size_or_sections': split, 'dim':0}, name='split'))
+                          {'section_sizes': split, 'n_sections': split[1], 'dim':0}, name='split'))
 
         output = Node([nodes[-1].out1], Flatten, {}, name='flatten')
         nodes.insert(-2, output)
@@ -126,8 +142,8 @@ def _add_fc_section(nodes):
     for k in range(n_blocks_fc):
         nodes.append(Node([nodes[-1].out0], PermuteRandom, {'seed':k}, name=F'permute_{k}'))
         nodes.append(Node([nodes[-1].out0], GLOWCouplingBlock,
-                {'clamp':c.clamping, 'F_class':F_fully_connected, 'F_args':{'internal_size':512}},
-                conditions=[conditions[1]], name=F'fc_{k}'))
+                          {'clamp':c.clamping, 'subnet_constructor': subnet_fully_connected},
+                          conditions=[conditions[1]], name=F'fc_{k}'))
 
     nodes.append(OutputNode([nodes[-1].out0], name='out'))
 
@@ -259,7 +275,7 @@ combined_model.cuda()
 combined_model = nn.DataParallel(combined_model, device_ids=c.device_ids)
 
 params_trainable = (list(filter(lambda p: p.requires_grad, combined_model.module.inn.parameters()))
-                  + list(combined_model.module.fc_cond_network.parameters()))
+                    + list(combined_model.module.fc_cond_network.parameters()))
 
 optim = torch.optim.Adam(params_trainable, lr=c.lr, betas=c.betas, eps=1e-6, weight_decay=c.weight_decay)
 #optim = torch.optim.SGD(params_trainable, lr=c.lr, weight_decay=c.weight_decay)
@@ -270,12 +286,12 @@ sched_trehsh = 0.001
 sched_cooldown = 2
 
 weight_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim,
-                                                            factor=sched_factor,
-                                                            patience=sched_patience,
-                                                            threshold=sched_trehsh,
-                                                            min_lr=0, eps=1e-08,
-                                                            cooldown=sched_cooldown,
-                                                            verbose = True)
+                                                              factor=sched_factor,
+                                                              patience=sched_patience,
+                                                              threshold=sched_trehsh,
+                                                              min_lr=0, eps=1e-08,
+                                                              cooldown=sched_cooldown,
+                                                              verbose = True)
 
 weight_scheduler_fixed = torch.optim.lr_scheduler.StepLR(optim, 120, gamma=0.2)
 
@@ -296,12 +312,12 @@ efros_net.train()
 if c.end_to_end:
     feature_optim = torch.optim.Adam(combined_model.module.feature_network.parameters(), lr=c.lr_feature_net, betas=c.betas, eps=1e-4)
     feature_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(feature_optim,
-                                                            factor=sched_factor,
-                                                            patience=sched_patience,
-                                                            threshold=sched_trehsh,
-                                                            min_lr=0, eps=1e-08,
-                                                            cooldown=sched_cooldown,
-                                                            verbose = True)
+                                                                   factor=sched_factor,
+                                                                   patience=sched_patience,
+                                                                   threshold=sched_trehsh,
+                                                                   min_lr=0, eps=1e-08,
+                                                                   cooldown=sched_cooldown,
+                                                                   verbose = True)
 else:
     #efros_net.eval()
     feature_optim = DummyOptim()

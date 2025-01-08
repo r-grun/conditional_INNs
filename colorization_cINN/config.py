@@ -67,7 +67,7 @@ progress_bar = False
 load_inn_only = ''                  # only load the inn part of the architecture
 load_feature_net = ''               # only load the cond. net part
 load_file = ''                      # load entire architecture (overwrites the prev. 2 options)
-filename = 'data/output/full_model.pt'   # output filename
+filename = './output/full_model.pt'   # output filename
 
 checkpoint_save_interval = 60
 checkpoint_save_overwrite = False   # Whether to overwrite the old checkpoint with the new one

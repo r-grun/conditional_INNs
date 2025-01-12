@@ -35,10 +35,10 @@ pre_low_lr = 0                      # for the first n epochs, lower the lr by a 
 #######################
 
 dataset = 'holopix'                # also 'coco' is possible. Todo: places365
-data_dir = '/workspace/data/anaglyphs'
-train_file = '/workspace/data/train_reversed.txt'
-test_file = '/workspace/data/test_anaglyphs.txt'
-validation_images = '/workspace/data/train_anaglyphs.txt' # './imagenet/validation_images.txt' # TODO search for usage + set to validation images
+data_dir = '/home/jovyan/data/anaglyphs'
+train_file = '/home/jovyan/data/train_reversed.txt'
+test_file = '/home/jovyan/data/test_anaglyphs.txt'
+validation_images = '/home/jovyan/data/train_anaglyphs.txt' # './imagenet/validation_images.txt' # TODO search for usage + set to validation images
 shuffle_val = False
 val_start = 0                       # use a slice [start:stop] of the entire val set
 val_stop = 5120

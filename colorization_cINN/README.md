@@ -3,7 +3,7 @@ Compiling the Joint Bilateral Filter
 
 Simply run
 ```
-python setup.py build_ext --inplace
+python3 setup.py build_ext --inplace
 ```
 
 Checkpoints
@@ -21,7 +21,11 @@ Checkpoints
 --------------------------------------
 
 ## Docker build command (from the root directory of the repository):
-`docker build -t anaglyph .`
+```
+docker build -t anaglyph .
+```
 
 ## Docker run command:
-`docker run -it --rm -p 8888:8888 -v /mnt/data/robin_grun/data:/workspace/data --runtime nvidia --gpus all --ipc=host --name anaglyph_container anaglyph`
+```
+docker run -it --rm -p 8888:8888 -v /mnt/data/robin_grun/data:/workspace/data --runtime nvidia --gpus all --shm-size=2gb --name anaglyph_container anaglyph
+```

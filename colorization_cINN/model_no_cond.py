@@ -20,7 +20,7 @@ def random_orthog(n):
     w = w + w.T
     w, S, V = np.linalg.svd(w)
     # return torch.FloatTensor(w)
-    return torch.tensor(w, dtype=torch.float32, device='cuda')
+    return torch.tensor(w, dtype=torch.float, device='cuda')
 
 class HaarConv(nn.Module):
 
@@ -161,7 +161,7 @@ def prepare_batch(x):
 
         x_ab = F.interpolate(x_ab, size=c.img_dims)
         # x_ab += 5e-2 * torch.cuda.FloatTensor(x_ab.shape).normal_()
-        x_ab += 5e-2 * torch.tensor(x_ab.shape, dtype=torch.float32,  device='cuda').normal_()
+        x_ab += 5e-2 * torch.tensor(x_ab.shape, dtype=torch.float,  device='cuda').normal_()
 
         cond = [x_l]
         ab_pred = None
@@ -177,17 +177,24 @@ class WrappedModel(nn.Module):
         self.inn = inn
 
     def forward(self, x):
-
+        # Split the input into x_l and x_ab
         x_l, x_ab = x[:, 0:1], x[:, 1:]
 
+        # Interpolate x_ab to match the target dimensions
         x_ab = F.interpolate(x_ab, size=c.img_dims)
-        # x_ab += 5e-2 * torch.cuda.FloatTensor(x_ab.shape).normal_()
-        x_ab += 5e-2 * torch.tensor(x_ab.shape, dtype=torch.float32, device='cuda').normal_()
 
+        # Add noise to x_ab
+        # x_ab += 5e-2 * torch.cuda.FloatTensor(x_ab.shape).normal_()
+        noise = 5e-2 * torch.tensor(x_ab, dtype=torch.float, device='cuda').normal_()
+        x_ab += noise
+
+        # Define condition
         cond = [x_l]
 
+        # Forward pass through the INN
         z = self.inn(x_ab, cond)
         zz = sum(torch.sum(o**2, dim=1) for o in z)
+        # Compute the Jacobian
         jac = self.inn.jacobian(run_forward=False)
 
         return zz, jac
